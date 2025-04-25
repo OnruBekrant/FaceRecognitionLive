@@ -350,23 +350,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'success') {
                     showAlert('Kişi başarıyla silindi', 'success');
                     
-                    // 1. Reload the known faces list
-                    loadKnownFaces(); 
+                    // Immediately remove person from UI without waiting for server
+                    const personElement = document.getElementById(`person-${personId}`);
+                    if (personElement) {
+                        personElement.remove();
+                    }
                     
-                    // 2. Update comparison dropdowns if modal is open
+                    // Reload the known faces list to ensure sync with server
+                    setTimeout(loadKnownFaces, 500);
+                    
+                    // Update comparison dropdowns if modal is open
                     const compareModal = document.getElementById('compareModal');
                     if (compareModal && compareModal.classList.contains('show')) {
                         const event = new Event('show.bs.modal');
                         compareModal.dispatchEvent(event);
                     }
                     
-                    // 3. Filter out deleted person from recent detections
+                    // Filter out deleted person from recent detections
                     recentDetections = recentDetections.filter(detection => {
-                        // Keep only detections that aren't related to the deleted person
                         return detection.name !== data.person_name;
                     });
                     
-                    // 4. Update the UI for recent detections
+                    // Update the UI for recent detections
                     updateDetectionsList();
                 } else {
                     showAlert(`Hata: ${data.message}`, 'danger');
