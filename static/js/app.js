@@ -616,7 +616,28 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} message - The message to show
      * @param {string} type - The alert type (success, danger, warning, info)
      */
-    function showAlert(message, type) {
+    function deleteAllPersons() {
+    if (confirm('Tüm kişileri silmek istediğinizden emin misiniz?')) {
+        fetch('/delete_all_persons', {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showAlert('Tüm kişiler başarıyla silindi', 'success');
+                loadKnownFaces();
+            } else {
+                showAlert(`Hata: ${data.message}`, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting all persons:', error);
+            showAlert('Kişiler silinirken bir hata oluştu', 'danger');
+        });
+    }
+}
+
+function showAlert(message, type) {
         // Create alert element
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;

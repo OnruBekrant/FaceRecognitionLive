@@ -129,3 +129,20 @@ class DBFaceStorageService:
             db.session.rollback()
             logger.error(f"Error deleting person: {str(e)}")
             return False
+            
+    def delete_all_persons(self):
+        """
+        Delete all persons and their face data from database
+        
+        Returns:
+            bool: True if deleted successfully, False otherwise
+        """
+        try:
+            Person.query.delete()
+            db.session.commit()
+            logger.info("Deleted all persons from database")
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting all persons: {str(e)}")
+            return False
