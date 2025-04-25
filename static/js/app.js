@@ -617,25 +617,29 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} type - The alert type (success, danger, warning, info)
      */
     function deleteAllPersons() {
-    if (confirm('Tüm kişileri silmek istediğinizden emin misiniz?')) {
-        fetch('/delete_all_persons', {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showAlert('Tüm kişiler başarıyla silindi', 'success');
-                loadKnownFaces();
-            } else {
-                showAlert(`Hata: ${data.message}`, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error deleting all persons:', error);
-            showAlert('Kişiler silinirken bir hata oluştu', 'danger');
-        });
+        if (confirm('Tüm kişileri silmek istediğinizden emin misiniz?')) {
+            fetch('/delete_all_persons', {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Tüm kişiler başarıyla silindi', 'success');
+                    // Clear recent detections
+                    recentDetections = [];
+                    updateDetectionsList();
+                    // Reload known faces
+                    loadKnownFaces();
+                } else {
+                    showAlert(`Hata: ${data.message}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting all persons:', error);
+                showAlert('Kişiler silinirken bir hata oluştu', 'danger');
+            });
+        }
     }
-}
 
 function showAlert(message, type) {
         // Create alert element
