@@ -194,14 +194,15 @@ class FaceRecognitionService:
                 cv2.putText(frame, label_text, (x+6, y+h-6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 0, 0), 1)
                 
                 # Add face data to the list
+                # Convert numpy int32/float types to Python native types for JSON serialization
                 face_data.append({
                     "name": name,
-                    "similarity": similarity,
+                    "similarity": float(similarity),
                     "location": {
-                        "top": y,
-                        "right": x+w,
-                        "bottom": y+h,
-                        "left": x
+                        "top": int(y),
+                        "right": int(x+w),
+                        "bottom": int(y+h),
+                        "left": int(x)
                     }
                 })
         

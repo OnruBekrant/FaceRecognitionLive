@@ -83,7 +83,10 @@
             <div class="modal-body">
                 <div class="text-center mb-3">
                     <div id="capturePreview" class="capture-preview">
-                        <img src="{{ url_for('video_feed') }}" width="100%" class="rounded" alt="Capture preview">
+                        <!-- Will be replaced by live webcam or canvas with captured image -->
+                        <div class="d-flex justify-content-center align-items-center h-100 bg-dark bg-opacity-25">
+                            <span class="text-light">Webcam will appear here</span>
+                        </div>
                     </div>
                 </div>
                 <form id="addPersonForm">
@@ -113,16 +116,52 @@
 <script>
     // This script is included in addition to app.js
     document.addEventListener('DOMContentLoaded', function() {
-        // Set up threshold slider
-        const thresholdSlider = document.getElementById('detectionThreshold');
-        const thresholdValue = document.getElementById('thresholdValue');
+        // Modal webcam handling
+        const addPersonModal = document.getElementById('addPersonModal');
+        let modalStream = null;
         
-        thresholdSlider.addEventListener('input', function() {
-            thresholdValue.textContent = `${this.value}%`;
+        // Setup video for the modal
+        addPersonModal.addEventListener('show.bs.modal', async function() {
+            try {
+                // Try to get webcam access for the modal
+                const modalVideoElement = document.createElement('video');
+                modalVideoElement.className = 'w-100 h-100 rounded';
+                modalVideoElement.autoplay = true;
+                modalVideoElement.style.objectFit = 'cover';
+                
+                const capturePreview = document.getElementById('capturePreview');
+                // Clear existing content
+                while (capturePreview.firstChild) {
+                    capturePreview.removeChild(capturePreview.firstChild);
+                }
+                
+                capturePreview.appendChild(modalVideoElement);
+                
+                // Get user media stream
+                modalStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 320, height: 240 } 
+                });
+                
+                // Set as source for video element
+                modalVideoElement.srcObject = modalStream;
+            } catch(err) {
+                console.error('Error accessing webcam for modal:', err);
+                const capturePreview = document.getElementById('capturePreview');
+                capturePreview.innerHTML = `
+                    <div class="d-flex justify-content-center align-items-center h-100 bg-dark bg-opacity-25">
+                        <span class="text-light">Webcam not available. Using server camera.</span>
+                    </div>
+                `;
+            }
         });
         
-        // Event listeners for the add person modal would go here
-        // They are implemented in app.js
+        // Clean up on modal close
+        addPersonModal.addEventListener('hidden.bs.modal', function() {
+            if (modalStream) {
+                modalStream.getTracks().forEach(track => track.stop());
+                modalStream = null;
+            }
+        });
     });
 </script>
 {% endblock %}

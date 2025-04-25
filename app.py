@@ -123,10 +123,24 @@ def process_frame():
         # Process the frame to detect and recognize faces
         processed_frame, face_data = face_service.process_frame(frame)
         
+        # Fix the JSON serialization by converting numpy types to Python native types
+        detections = []
+        for detection in face_data:
+            detections.append({
+                "name": detection["name"],
+                "similarity": float(detection["similarity"]),
+                "location": {
+                    "top": int(detection["location"]["top"]),
+                    "right": int(detection["location"]["right"]),
+                    "bottom": int(detection["location"]["bottom"]),
+                    "left": int(detection["location"]["left"])
+                }
+            })
+        
         # Return the face detection data to the client
         return jsonify({
             "status": "success",
-            "detections": face_data
+            "detections": detections
         })
         
     except Exception as e:
