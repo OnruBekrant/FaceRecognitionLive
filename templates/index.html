@@ -1,0 +1,128 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-camera me-2"></i>Live Face Recognition
+                </h5>
+                <div>
+                    <span class="badge bg-success" id="connectionStatus">Connected</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="video-container">
+                        <img src="{{ url_for('video_feed') }}" width="100%" class="video-feed rounded" alt="Video stream">
+                        <div class="video-overlay" id="detectionOverlay"></div>
+                    </div>
+                </div>
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    The system will detect faces in the video and display names and similarity percentages for recognized people.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="detectionThreshold" class="form-label">Recognition Threshold (%)</label>
+                    <input type="range" class="form-range" min="50" max="100" value="60" id="detectionThreshold">
+                    <div class="d-flex justify-content-between">
+                        <small>50% (More matches)</small>
+                        <small id="thresholdValue">60%</small>
+                        <small>100% (Exact matches only)</small>
+                    </div>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="enableNotifications" checked>
+                    <label class="form-check-label" for="enableNotifications">Enable Notifications</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Detections
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group" id="detectionList">
+                    <li class="list-group-item text-center text-muted">
+                        No recent detections
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Person Modal -->
+<div class="modal fade" id="addPersonModal" tabindex="-1" aria-labelledby="addPersonModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPersonModalLabel">Add New Person</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <div id="capturePreview" class="capture-preview">
+                        <img src="{{ url_for('video_feed') }}" width="100%" class="rounded" alt="Capture preview">
+                    </div>
+                </div>
+                <form id="addPersonForm">
+                    <div class="mb-3">
+                        <label for="personName" class="form-label">Person's Name</label>
+                        <input type="text" class="form-control" id="personName" required placeholder="Enter name">
+                    </div>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" id="captureFaceBtn">
+                            <i class="fas fa-camera me-2"></i>Capture Face
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="savePersonBtn" disabled>
+                    <i class="fas fa-save me-2"></i>Save Person
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // This script is included in addition to app.js
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up threshold slider
+        const thresholdSlider = document.getElementById('detectionThreshold');
+        const thresholdValue = document.getElementById('thresholdValue');
+        
+        thresholdSlider.addEventListener('input', function() {
+            thresholdValue.textContent = `${this.value}%`;
+        });
+        
+        // Event listeners for the add person modal would go here
+        // They are implemented in app.js
+    });
+</script>
+{% endblock %}

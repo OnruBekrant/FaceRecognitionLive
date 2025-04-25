@@ -1,0 +1,89 @@
+/* Custom styling for the face recognition app */
+
+/* Video container styling */
+.video-container {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.video-feed {
+    display: block;
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+}
+
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Capture preview in the modal */
+.capture-preview {
+    width: 100%;
+    height: 200px;
+    border: 2px dashed var(--bs-secondary);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.capture-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Face detection box styling */
+.face-box {
+    position: absolute;
+    border: 3px solid #28a745;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.face-label {
+    position: absolute;
+    background-color: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+/* Animation for new detection */
+@keyframes highlight {
+    0% { background-color: rgba(40, 167, 69, 0.3); }
+    100% { background-color: transparent; }
+}
+
+.highlight-detection {
+    animation: highlight 1.5s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .video-container {
+        max-width: 100%;
+    }
+    
+    .video-feed {
+        max-height: 300px;
+    }
+    
+    .face-label {
+        font-size: 12px;
+        max-width: 100px;
+    }
+}
