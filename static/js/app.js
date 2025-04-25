@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} message - The message to show
      * @param {string} type - The alert type (success, danger, warning, info)
      */
-    window.deleteAllPersons = function() {
+    function deleteAllPersons() {
         if (confirm('Tüm kişileri silmek istediğinizden emin misiniz?')) {
             fetch('/delete_all_persons', {
                 method: 'DELETE',
@@ -640,6 +640,9 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error deleting all persons:', error);
                 showAlert('Kişiler silinirken bir hata oluştu', 'danger');
+            });
+        }
+    }
             });
         }
     }
