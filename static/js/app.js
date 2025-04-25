@@ -66,6 +66,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 connectionStatus.classList.replace('bg-danger', 'bg-success');
                 showAlert('Webcam connected successfully!', 'success');
                 
+                // Make these accessible globally
+                window.videoStream = videoStream;
+                window.liveVideo = liveVideo;
+                
                 // Start sending frames to the server for processing
                 startFrameProcessing();
             })
@@ -190,29 +194,43 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Capture the current frame for preview
-        if (streamingEnabled && liveVideo && liveVideo.videoWidth) {
-            // Draw the current frame on the capture canvas
-            captureContext = captureCanvas.getContext('2d');
-            captureContext.drawImage(liveVideo, 0, 0, captureCanvas.width, captureCanvas.height);
+        // Capture the current frame for preview - check both main and modal videos
+        if (streamingEnabled) {
+            // First check for the modal video (only available when modal is open)
+            const modalVideo = document.getElementById('modalVideo');
+            const videoSource = modalVideo || liveVideo;
             
-            // Show the preview
-            const previewImg = document.createElement('img');
-            previewImg.src = captureCanvas.toDataURL('image/jpeg');
-            previewImg.className = 'rounded';
-            previewImg.style.width = '100%';
-            
-            // Replace any existing preview
-            while (capturePreview.firstChild) {
-                capturePreview.removeChild(capturePreview.firstChild);
+            if (videoSource && videoSource.videoWidth) {
+                // Draw the current frame on the capture canvas
+                captureContext = captureCanvas.getContext('2d');
+                captureContext.drawImage(videoSource, 0, 0, captureCanvas.width, captureCanvas.height);
+                
+                // Show the preview
+                const previewImg = document.createElement('img');
+                previewImg.src = captureCanvas.toDataURL('image/jpeg');
+                previewImg.className = 'rounded';
+                previewImg.style.width = '100%';
+                
+                // Replace any existing preview
+                const capturePreview = document.getElementById('capturePreview');
+                while (capturePreview.firstChild) {
+                    capturePreview.removeChild(capturePreview.firstChild);
+                }
+                capturePreview.appendChild(previewImg);
+                
+                // Enable save button to indicate capture is ready
+                isCaptureReady = true;
+                savePersonBtn.disabled = false;
+                showAlert('Face captured! Click Save to add this person.', 'success');
+            } else {
+                showAlert('Video stream not available', 'warning');
             }
-            capturePreview.appendChild(previewImg);
+        } else {
+            // Using server-side simulation
+            isCaptureReady = true;
+            savePersonBtn.disabled = false;
+            showAlert('Using server-side camera. Click Save to add this person.', 'info');
         }
-        
-        // Enable save button to indicate capture is ready
-        isCaptureReady = true;
-        savePersonBtn.disabled = false;
-        showAlert('Face captured! Click Save to add this person.', 'success');
     });
     
     // Handle save person button

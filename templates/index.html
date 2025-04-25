@@ -118,16 +118,16 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Modal webcam handling
         const addPersonModal = document.getElementById('addPersonModal');
-        let modalStream = null;
         
-        // Setup video for the modal
-        addPersonModal.addEventListener('show.bs.modal', async function() {
-            try {
-                // Try to get webcam access for the modal
+        // Setup video for the modal - using the main stream instead of creating a new one
+        addPersonModal.addEventListener('show.bs.modal', function() {
+            // Access the global videoStream and videoElement from app.js
+            if (window.videoStream && window.liveVideo) {
                 const modalVideoElement = document.createElement('video');
                 modalVideoElement.className = 'w-100 h-100 rounded';
                 modalVideoElement.autoplay = true;
                 modalVideoElement.style.objectFit = 'cover';
+                modalVideoElement.id = 'modalVideo'; // Set an ID so capture button can find it
                 
                 const capturePreview = document.getElementById('capturePreview');
                 // Clear existing content
@@ -137,29 +137,17 @@
                 
                 capturePreview.appendChild(modalVideoElement);
                 
-                // Get user media stream
-                modalStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 320, height: 240 } 
-                });
-                
-                // Set as source for video element
-                modalVideoElement.srcObject = modalStream;
-            } catch(err) {
-                console.error('Error accessing webcam for modal:', err);
+                // Use the already initialized stream
+                modalVideoElement.srcObject = window.videoStream;
+            } else {
+                console.log('Using server-side simulation');
+                // Use server-side simulation
                 const capturePreview = document.getElementById('capturePreview');
                 capturePreview.innerHTML = `
                     <div class="d-flex justify-content-center align-items-center h-100 bg-dark bg-opacity-25">
-                        <span class="text-light">Webcam not available. Using server camera.</span>
+                        <span class="text-light">Using server camera simulation</span>
                     </div>
                 `;
-            }
-        });
-        
-        // Clean up on modal close
-        addPersonModal.addEventListener('hidden.bs.modal', function() {
-            if (modalStream) {
-                modalStream.getTracks().forEach(track => track.stop());
-                modalStream = null;
             }
         });
     });
