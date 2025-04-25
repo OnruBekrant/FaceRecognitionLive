@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', function() {
         liveVideo.autoplay = true;
         liveVideo.width = 640;
         liveVideo.height = 480;
+        // Aynalama efekti ekle - kullanıcının kendisini doğal şekilde görmesi için
+        liveVideo.style.transform = 'scaleX(-1)';
         
         // Create a canvas element for capturing frames
         canvas = document.createElement('canvas');

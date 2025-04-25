@@ -380,6 +380,51 @@ def update_threshold():
             "status": "error",
             "message": f"An error occurred: {str(e)}"
         }), 500
+        
+@app.route('/compare_faces', methods=['POST'])
+def compare_faces_endpoint():
+    """Compare two faces and return similarity data"""
+    try:
+        data = request.json
+        face_id1 = data.get('face_id1')
+        face_id2 = data.get('face_id2')
+        
+        if face_id1 is None or face_id2 is None:
+            return jsonify({
+                "status": "error",
+                "message": "Both face_id1 and face_id2 are required"
+            }), 400
+            
+        # Convert to int
+        try:
+            face_id1 = int(face_id1)
+            face_id2 = int(face_id2)
+        except ValueError:
+            return jsonify({
+                "status": "error",
+                "message": "Face IDs must be integers"
+            }), 400
+            
+        # Compare faces
+        result = face_service.compare_faces(face_id1, face_id2)
+        
+        return jsonify({
+            "status": "success",
+            "result": result
+        })
+        
+    except ValueError as ve:
+        return jsonify({
+            "status": "error",
+            "message": str(ve)
+        }), 400
+        
+    except Exception as e:
+        logger.error(f"Error comparing faces: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"An error occurred: {str(e)}"
+        }), 500
 
 # For development use
 if __name__ == '__main__':

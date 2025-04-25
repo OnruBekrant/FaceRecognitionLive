@@ -183,6 +183,66 @@ class FaceRecognitionService:
             logger.error(f"Error adding face: {str(e)}")
             return False
     
+    def compare_faces(self, face_id1, face_id2):
+        """
+        Compare two faces and calculate their similarity
+        
+        Args:
+            face_id1: ID of the first face
+            face_id2: ID of the second face
+            
+        Returns:
+            dict: A dictionary with comparison data including similarity percentage
+        """
+        try:
+            # Get face encodings for both faces
+            # If using DB service, retrieve from database
+            if len(self.known_face_features) <= max(face_id1, face_id2):
+                raise ValueError(f"Invalid face IDs: {face_id1}, {face_id2}")
+                
+            face1_encoding = self.known_face_features[face_id1]
+            face2_encoding = self.known_face_features[face_id2]
+            
+            # Get names
+            face1_name = self.known_face_names[face_id1]
+            face2_name = self.known_face_names[face_id2]
+            
+            # Get thumbnails if available
+            face1_thumbnail = None
+            if face_id1 < len(self.known_face_thumbnails):
+                face1_thumbnail = self.known_face_thumbnails[face_id1]
+                
+            face2_thumbnail = None
+            if face_id2 < len(self.known_face_thumbnails):
+                face2_thumbnail = self.known_face_thumbnails[face_id2]
+            
+            # Calculate similarity (1 - distance)
+            # Convert from OpenCV feature distance to percentage similarity
+            distance = np.linalg.norm(face1_encoding - face2_encoding)
+            # Convert distance to similarity percentage (closer to 0 = more similar)
+            # Use a formula that maps typical distances to reasonable percentages
+            similarity = max(0, min(100, 100 * (1 - distance / 1.0)))
+            
+            # Return comparison data
+            return {
+                "face1": {
+                    "id": face_id1,
+                    "name": face1_name,
+                    "thumbnail": face1_thumbnail
+                },
+                "face2": {
+                    "id": face_id2,
+                    "name": face2_name,
+                    "thumbnail": face2_thumbnail
+                },
+                "similarity": similarity,
+                "distance": distance
+            }
+            
+        except Exception as e:
+            logger.error(f"Error comparing faces: {str(e)}")
+            raise
+            
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, List[Dict[str, Any]]]:
         """
         Process a video frame to detect and recognize faces

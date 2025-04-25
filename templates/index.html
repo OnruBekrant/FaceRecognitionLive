@@ -50,6 +50,12 @@
                     <input class="form-check-input" type="checkbox" id="enableNotifications" checked>
                     <label class="form-check-label" for="enableNotifications">Enable Notifications</label>
                 </div>
+                
+                <div class="d-grid mt-3">
+                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#compareModal">
+                        <i class="fas fa-exchange-alt me-2"></i>Yüz Karşılaştırma
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -130,6 +136,76 @@
         </div>
     </div>
 </div>
+
+<!-- Face Comparison Modal -->
+<div class="modal fade" id="compareModal" tabindex="-1" aria-labelledby="compareModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="compareModalLabel">Yüz Benzerlik Karşılaştırması</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Birinci Kişi</label>
+                        <select class="form-select" id="compareFace1">
+                            <option value="">Kişi seçin</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">İkinci Kişi</label>
+                        <select class="form-select" id="compareFace2">
+                            <option value="">Kişi seçin</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="d-grid mb-4">
+                    <button type="button" class="btn btn-primary" id="startComparisonBtn" disabled>
+                        <i class="fas fa-sync me-2"></i>Karşılaştırmayı Başlat
+                    </button>
+                </div>
+                
+                <div id="comparisonResults" class="d-none">
+                    <div class="row mb-4">
+                        <div class="col-md-5 text-center">
+                            <div class="comparison-thumbnail-container">
+                                <img id="face1Thumbnail" class="img-thumbnail comparison-thumbnail" alt="Birinci yüz">
+                                <div class="comparison-name" id="face1Name"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-center d-flex align-items-center justify-content-center">
+                            <div class="similarity-percentage">
+                                <div class="display-4 fw-bold" id="similarityValue">?%</div>
+                                <div class="text-muted">Benzerlik</div>
+                            </div>
+                        </div>
+                        <div class="col-md-5 text-center">
+                            <div class="comparison-thumbnail-container">
+                                <img id="face2Thumbnail" class="img-thumbnail comparison-thumbnail" alt="İkinci yüz">
+                                <div class="comparison-name" id="face2Name"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress mb-3" style="height: 30px;">
+                        <div class="progress-bar" id="similarityBar" 
+                            role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                    
+                    <div class="alert" id="comparisonAlert">
+                        <!-- Will be filled dynamically -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -138,6 +214,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Modal webcam handling
         const addPersonModal = document.getElementById('addPersonModal');
+        const compareModal = document.getElementById('compareModal');
+        const compareFace1 = document.getElementById('compareFace1');
+        const compareFace2 = document.getElementById('compareFace2');
+        const startComparisonBtn = document.getElementById('startComparisonBtn');
+        const comparisonResults = document.getElementById('comparisonResults');
+        const face1Thumbnail = document.getElementById('face1Thumbnail');
+        const face2Thumbnail = document.getElementById('face2Thumbnail');
+        const face1Name = document.getElementById('face1Name');
+        const face2Name = document.getElementById('face2Name');
+        const similarityValue = document.getElementById('similarityValue');
+        const similarityBar = document.getElementById('similarityBar');
+        const comparisonAlert = document.getElementById('comparisonAlert');
         
         // Setup video for the modal - using the main stream instead of creating a new one
         addPersonModal.addEventListener('show.bs.modal', function() {
@@ -147,6 +235,7 @@
                 modalVideoElement.className = 'w-100 h-100 rounded';
                 modalVideoElement.autoplay = true;
                 modalVideoElement.style.objectFit = 'cover';
+                modalVideoElement.style.transform = 'scaleX(-1)'; // Aynalama efekti ekle
                 modalVideoElement.id = 'modalVideo'; // Set an ID so capture button can find it
                 
                 const capturePreview = document.getElementById('capturePreview');
@@ -169,6 +258,154 @@
                     </div>
                 `;
             }
+        });
+        
+        // Handle face comparison modal
+        compareModal.addEventListener('show.bs.modal', function() {
+            // Populate the dropdown lists with known faces
+            fetch('/get_faces')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Clear existing options except the first one
+                        while (compareFace1.options.length > 1) {
+                            compareFace1.remove(1);
+                        }
+                        
+                        while (compareFace2.options.length > 1) {
+                            compareFace2.remove(1);
+                        }
+                        
+                        // Add new options
+                        data.faces.forEach(face => {
+                            const option1 = new Option(face.name, face.id);
+                            const option2 = new Option(face.name, face.id);
+                            compareFace1.add(option1);
+                            compareFace2.add(option2);
+                        });
+                        
+                        // Hide results until comparison is made
+                        comparisonResults.classList.add('d-none');
+                        
+                        // Enable the button if at least two faces are available
+                        updateComparisonButton();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading known faces:', error);
+                });
+        });
+        
+        // Enable/disable the comparison button based on selections
+        function updateComparisonButton() {
+            const face1Selected = compareFace1.value !== '';
+            const face2Selected = compareFace2.value !== '';
+            const differentFaces = compareFace1.value !== compareFace2.value;
+            
+            startComparisonBtn.disabled = !(face1Selected && face2Selected && differentFaces);
+            
+            // Show warning if same face is selected
+            if (face1Selected && face2Selected && !differentFaces) {
+                comparisonAlert.classList.remove('d-none');
+                comparisonAlert.className = 'alert alert-warning';
+                comparisonAlert.textContent = 'Lütfen karşılaştırma için farklı kişiler seçin';
+            } else if (comparisonResults.classList.contains('d-none')) {
+                comparisonAlert.classList.add('d-none');
+            }
+        }
+        
+        // Listen for selection changes
+        compareFace1.addEventListener('change', updateComparisonButton);
+        compareFace2.addEventListener('change', updateComparisonButton);
+        
+        // Handle comparison start
+        startComparisonBtn.addEventListener('click', function() {
+            const face1Id = compareFace1.value;
+            const face2Id = compareFace2.value;
+            
+            if (!face1Id || !face2Id || face1Id === face2Id) {
+                return;
+            }
+            
+            fetch('/compare_faces', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    face_id1: face1Id,
+                    face_id2: face2Id
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const result = data.result;
+                    const similarity = result.similarity.toFixed(1);
+                    
+                    // Update UI with comparison results
+                    comparisonResults.classList.remove('d-none');
+                    
+                    // Update names
+                    face1Name.textContent = result.face1.name;
+                    face2Name.textContent = result.face2.name;
+                    
+                    // Update thumbnails if available
+                    if (result.face1.thumbnail) {
+                        face1Thumbnail.src = `data:image/jpeg;base64,${result.face1.thumbnail}`;
+                    } else {
+                        face1Thumbnail.src = 'https://via.placeholder.com/150?text=No+Image';
+                    }
+                    
+                    if (result.face2.thumbnail) {
+                        face2Thumbnail.src = `data:image/jpeg;base64,${result.face2.thumbnail}`;
+                    } else {
+                        face2Thumbnail.src = 'https://via.placeholder.com/150?text=No+Image';
+                    }
+                    
+                    // Update similarity percentage and progress bar
+                    similarityValue.textContent = `${similarity}%`;
+                    similarityBar.style.width = `${similarity}%`;
+                    
+                    // Set progress bar color based on similarity
+                    if (similarity >= 80) {
+                        similarityBar.className = 'progress-bar bg-success';
+                    } else if (similarity >= 60) {
+                        similarityBar.className = 'progress-bar bg-info';
+                    } else if (similarity >= 40) {
+                        similarityBar.className = 'progress-bar bg-warning';
+                    } else {
+                        similarityBar.className = 'progress-bar bg-danger';
+                    }
+                    
+                    // Update alert message
+                    comparisonAlert.classList.remove('d-none');
+                    
+                    if (similarity >= 80) {
+                        comparisonAlert.className = 'alert alert-success';
+                        comparisonAlert.innerHTML = '<i class="fas fa-check-circle me-2"></i>Bu iki yüz büyük olasılıkla aynı kişiye ait!';
+                    } else if (similarity >= 60) {
+                        comparisonAlert.className = 'alert alert-info';
+                        comparisonAlert.innerHTML = '<i class="fas fa-info-circle me-2"></i>Bu iki yüz benzer özelliklere sahip.';
+                    } else if (similarity >= 40) {
+                        comparisonAlert.className = 'alert alert-warning';
+                        comparisonAlert.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Bu iki yüz arasında sınırlı benzerlik var.';
+                    } else {
+                        comparisonAlert.className = 'alert alert-danger';
+                        comparisonAlert.innerHTML = '<i class="fas fa-times-circle me-2"></i>Bu iki yüz büyük olasılıkla farklı kişilere ait.';
+                    }
+                } else {
+                    comparisonAlert.classList.remove('d-none');
+                    comparisonAlert.className = 'alert alert-danger';
+                    comparisonAlert.textContent = `Hata: ${data.message}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error comparing faces:', error);
+                comparisonAlert.classList.remove('d-none');
+                comparisonAlert.className = 'alert alert-danger';
+                comparisonAlert.textContent = 'Karşılaştırma sırasında bir hata oluştu.';
+            });
         });
     });
 </script>
