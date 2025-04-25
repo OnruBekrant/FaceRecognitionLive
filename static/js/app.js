@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const captureFaceBtn = document.getElementById('captureFaceBtn');
     const savePersonBtn = document.getElementById('savePersonBtn');
     const capturePreview = document.getElementById('capturePreview');
-    
+
     // State variables
     let isCaptureReady = false;
     let recentDetections = [];
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let captureCanvas = null;
     let captureContext = null;
     let processingInterval = null;
-    
+
     // Initialize the live video feed with WebRTC
     function initializeWebcam() {
         // Create video element to replace the image
@@ -38,26 +38,26 @@ document.addEventListener('DOMContentLoaded', function() {
         liveVideo.height = 480;
         // Aynalama efekti ekle - kullanıcının kendisini doğal şekilde görmesi için
         liveVideo.style.transform = 'scaleX(-1)';
-        
+
         // Create a canvas element for capturing frames
         canvas = document.createElement('canvas');
         canvas.width = 640;
         canvas.height = 480;
         canvas.style.display = 'none';
-        
+
         // Create a canvas for the capture preview in the modal
         captureCanvas = document.createElement('canvas');
         captureCanvas.width = 320;
         captureCanvas.height = 240;
         captureCanvas.style.display = 'none';
-        
+
         // Replace the image source with the video element
         videoContainer.querySelector('img').replaceWith(liveVideo);
-        
+
         // Add the canvases to the page
         document.body.appendChild(canvas);
         document.body.appendChild(captureCanvas);
-        
+
         // Get access to the webcam
         navigator.mediaDevices.getUserMedia({ video: true, audio: false })
             .then(function(stream) {
@@ -67,11 +67,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 connectionStatus.textContent = 'Connected';
                 connectionStatus.classList.replace('bg-danger', 'bg-success');
                 showAlert('Webcam connected successfully!', 'success');
-                
+
                 // Make these accessible globally
                 window.videoStream = videoStream;
                 window.liveVideo = liveVideo;
-                
+
                 // Start sending frames to the server for processing
                 startFrameProcessing();
             })
@@ -80,12 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 connectionStatus.textContent = 'Disconnected';
                 connectionStatus.classList.replace('bg-success', 'bg-danger');
                 showAlert('Could not access webcam. Check permissions.', 'danger');
-                
+
                 // Fallback to the server-side simulation
                 fallbackToServerSimulation();
             });
     }
-    
+
     // Fallback to server-side simulation if webcam access fails
     function fallbackToServerSimulation() {
         const simulatedImg = document.createElement('img');
@@ -93,30 +93,30 @@ document.addEventListener('DOMContentLoaded', function() {
         simulatedImg.className = 'video-feed rounded';
         simulatedImg.width = 640;
         simulatedImg.height = 480;
-        
+
         // Replace the video element with the image
         if (liveVideo) {
             liveVideo.replaceWith(simulatedImg);
         } else {
             videoContainer.querySelector('img').src = '/video_feed';
         }
-        
+
         streamingEnabled = false;
         showAlert('Using simulated camera feed', 'info');
     }
-    
+
     // Capture the current frame and send it to the server for processing
     function captureAndSendFrame() {
         if (!streamingEnabled || !liveVideo || !liveVideo.videoWidth) return;
-        
+
         const context = canvas.getContext('2d');
         context.drawImage(liveVideo, 0, 0, canvas.width, canvas.height);
-        
+
         // Convert the canvas to a data URL and send to the server
         canvas.toBlob(function(blob) {
             const formData = new FormData();
             formData.append('frame', blob, 'frame.jpg');
-            
+
             fetch('/process_frame', {
                 method: 'POST',
                 body: formData
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success') {
                     updateDetectionOverlay(data.detections);
-                    
+
                     // Add new detections to the list
                     if (data.detections && data.detections.length > 0) {
                         data.detections.forEach(detection => {
@@ -143,19 +143,19 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }, 'image/jpeg', 0.8);
     }
-    
+
     // Update the detection overlay with face boxes and labels
     function updateDetectionOverlay(detections) {
         if (!detectionOverlay) return;
-        
+
         // Clear the overlay
         detectionOverlay.innerHTML = '';
-        
+
         // Add face boxes and labels for each detection
         if (detections && detections.length > 0) {
             detections.forEach(detection => {
                 const loc = detection.location;
-                
+
                 // Create face box
                 const faceBox = document.createElement('div');
                 faceBox.className = 'face-box';
@@ -163,63 +163,63 @@ document.addEventListener('DOMContentLoaded', function() {
                 faceBox.style.top = `${loc.top}px`;
                 faceBox.style.width = `${loc.right - loc.left}px`;
                 faceBox.style.height = `${loc.bottom - loc.top}px`;
-                
+
                 // Create face label
                 const faceLabel = document.createElement('div');
                 faceLabel.className = 'face-label';
                 faceLabel.style.left = `${loc.left}px`;
                 faceLabel.style.top = `${loc.bottom + 5}px`;
-                
+
                 if (detection.name === 'Unknown') {
                     faceLabel.textContent = 'Unknown';
                 } else {
                     faceLabel.textContent = `${detection.name} (${detection.similarity.toFixed(1)}%)`;
                 }
-                
+
                 // Add to overlay
                 detectionOverlay.appendChild(faceBox);
                 detectionOverlay.appendChild(faceLabel);
             });
         }
     }
-    
+
     // Start sending frames to the server at regular intervals
     function startFrameProcessing() {
         // Process frames every 500ms to avoid overwhelming the server
         processingInterval = setInterval(captureAndSendFrame, 500);
     }
-    
+
     // Handle face capture for adding a new person
     captureFaceBtn.addEventListener('click', function() {
         if (personNameInput.value.trim() === '') {
             showAlert('Please enter a name for the person', 'warning');
             return;
         }
-        
+
         // Capture the current frame for preview - check both main and modal videos
         if (streamingEnabled) {
             // First check for the modal video (only available when modal is open)
             const modalVideo = document.getElementById('modalVideo');
             const videoSource = modalVideo || liveVideo;
-            
+
             if (videoSource && videoSource.videoWidth) {
                 // Draw the current frame on the capture canvas
                 captureContext = captureCanvas.getContext('2d');
                 captureContext.drawImage(videoSource, 0, 0, captureCanvas.width, captureCanvas.height);
-                
+
                 // Show the preview
                 const previewImg = document.createElement('img');
                 previewImg.src = captureCanvas.toDataURL('image/jpeg');
                 previewImg.className = 'rounded';
                 previewImg.style.width = '100%';
-                
+
                 // Replace any existing preview
                 const capturePreview = document.getElementById('capturePreview');
                 while (capturePreview.firstChild) {
                     capturePreview.removeChild(capturePreview.firstChild);
                 }
                 capturePreview.appendChild(previewImg);
-                
+
                 // Enable save button to indicate capture is ready
                 isCaptureReady = true;
                 savePersonBtn.disabled = false;
@@ -234,20 +234,20 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('Using server-side camera. Click Save to add this person.', 'info');
         }
     });
-    
+
     // Handle save person button
     savePersonBtn.addEventListener('click', function() {
         if (!isCaptureReady) {
             showAlert('Please capture the face first', 'warning');
             return;
         }
-        
+
         const personName = personNameInput.value.trim();
-        
+
         // If we have a webcam stream, use the captured frame
         if (streamingEnabled && captureCanvas) {
             const imageData = captureCanvas.toDataURL('image/jpeg').split(',')[1];
-            
+
             fetch('/add_person_webcam', {
                 method: 'POST',
                 headers: {
@@ -284,37 +284,37 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     // Handle the response from adding a person
     function handleAddPersonResponse(data) {
         const personName = personNameInput.value.trim();
-        
+
         if (data.status === 'success') {
             showAlert(`Person "${personName}" added successfully!`, 'success');
-            
+
             // Add the new person to the recent detections
             addDetectionToList({
                 name: personName,
                 similarity: 100,
                 isNew: true
             });
-            
+
             // Reset form and close modal
             personNameInput.value = '';
             isCaptureReady = false;
             savePersonBtn.disabled = true;
-            
+
             // Close the modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('addPersonModal'));
             modal.hide();
-            
+
             // Load the known faces to update UI
             loadKnownFaces();
         } else {
             showAlert(`Error: ${data.message}`, 'danger');
         }
     }
-    
+
     /**
      * Load known faces from the server
      */
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error loading known faces:', error);
             });
     }
-    
+
     /**
      * Delete a person from the database
      * @param {number} personId - The ID of the person to delete
@@ -341,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!confirm('Bu kişiyi silmek istediğinizden emin misiniz?')) {
             return;
         }
-        
+
         fetch(`/delete_person/${personId}`, {
             method: 'DELETE'
         })
@@ -349,28 +349,28 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success') {
                     showAlert('Kişi başarıyla silindi', 'success');
-                    
+
                     // Immediately remove person from UI without waiting for server
                     const personElement = document.getElementById(`person-${personId}`);
                     if (personElement) {
                         personElement.remove();
                     }
-                    
+
                     // Reload the known faces list to ensure sync with server
                     setTimeout(loadKnownFaces, 500);
-                    
+
                     // Update comparison dropdowns if modal is open
                     const compareModal = document.getElementById('compareModal');
                     if (compareModal && compareModal.classList.contains('show')) {
                         const event = new Event('show.bs.modal');
                         compareModal.dispatchEvent(event);
                     }
-                    
+
                     // Filter out deleted person from recent detections
                     recentDetections = recentDetections.filter(detection => {
                         return detection.name !== data.person_name;
                     });
-                    
+
                     // Update the UI for recent detections
                     updateDetectionsList();
                 } else {
@@ -386,13 +386,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update the UI to show known faces with thumbnails
     function updateKnownFacesUI(faces) {
         console.log('Known faces loaded:', faces);
-        
+
         const knownPeopleList = document.getElementById('knownPeopleList');
         if (!knownPeopleList) return;
-        
+
         // Clear the current list
         knownPeopleList.innerHTML = '';
-        
+
         if (faces.length === 0) {
             // Show empty state
             const emptyItem = document.createElement('li');
@@ -401,16 +401,16 @@ document.addEventListener('DOMContentLoaded', function() {
             knownPeopleList.appendChild(emptyItem);
             return;
         }
-        
+
         // Add each person to the list with delete button
         faces.forEach(face => {
             const item = document.createElement('li');
             item.className = 'list-group-item known-person-item d-flex justify-content-between align-items-center';
-            
+
             // Create left part with thumbnail and name
             const leftPart = document.createElement('div');
             leftPart.className = 'd-flex align-items-center';
-            
+
             // Create thumbnail image or placeholder
             if (face.thumbnail) {
                 const img = document.createElement('img');
@@ -426,13 +426,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 placeholder.appendChild(icon);
                 leftPart.appendChild(placeholder);
             }
-            
+
             // Create name span
             const nameSpan = document.createElement('span');
             nameSpan.className = 'known-person-name';
             nameSpan.textContent = face.name;
             leftPart.appendChild(nameSpan);
-            
+
             // Create delete button
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn btn-sm btn-danger';
@@ -442,18 +442,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.stopPropagation();
                 deletePerson(face.id);
             });
-            
+
             // Add components to the list item
             item.appendChild(leftPart);
             item.appendChild(deleteBtn);
-            
+
             // Add to list
             knownPeopleList.appendChild(item);
         });
-        
+
         console.log('Known faces updated in UI');
     }
-    
+
     /**
      * Add a detection to the recent detections list
      * @param {Object} detection - The detection data
@@ -464,14 +464,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function addDetectionToList(detection) {
         // Check if this person is already in recent detections
         const existingIndex = recentDetections.findIndex(d => d.name === detection.name);
-        
+
         // If it's a new detection or an update with higher similarity
         if (existingIndex === -1 || recentDetections[existingIndex].similarity < detection.similarity) {
             // If it exists, remove it so we can add the updated version at the top
             if (existingIndex !== -1) {
                 recentDetections.splice(existingIndex, 1);
             }
-            
+
             // Add current date and time to the detection
             const now = new Date();
             const formattedTime = now.toLocaleTimeString('tr-TR', { 
@@ -484,39 +484,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 month: '2-digit',
                 year: 'numeric'
             });
-            
+
             // Add timestamp to detection object
             detection.timestamp = {
                 time: formattedTime,
                 date: formattedDate,
                 raw: now
             };
-            
+
             // Add to recent detections array
             recentDetections.unshift(detection);
-            
+
             // Keep only the last 5 detections
             if (recentDetections.length > 5) {
                 recentDetections.pop();
             }
-            
+
             // Update the UI
             updateDetectionsList();
-            
+
             // Show notification if enabled and it's a known person
             if (enableNotifications.checked && detection.name !== 'Unknown') {
                 showNotification(detection);
             }
         }
     }
-    
+
     /**
      * Update the recent detections list in the UI
      */
     function updateDetectionsList() {
         // Clear the current list
         detectionList.innerHTML = '';
-        
+
         if (recentDetections.length === 0) {
             const emptyItem = document.createElement('li');
             emptyItem.className = 'list-group-item text-center text-muted';
@@ -524,27 +524,27 @@ document.addEventListener('DOMContentLoaded', function() {
             detectionList.appendChild(emptyItem);
             return;
         }
-        
+
         // Add each detection to the list
         recentDetections.forEach((detection, index) => {
             const item = document.createElement('li');
             item.className = 'list-group-item';
-            
+
             if (index === 0) {
                 item.classList.add('highlight-detection');
             }
-            
+
             // Create main content div with name and time
             const mainContent = document.createElement('div');
             mainContent.className = 'd-flex justify-content-between align-items-center';
-            
+
             // Create left side with name and icon
             const nameSpan = document.createElement('div');
             nameSpan.innerHTML = `<i class="fas fa-user me-2"></i>${detection.name}`;
-            
+
             // Create right side with badge
             const badgeSpan = document.createElement('div');
-            
+
             if (detection.name === 'Unknown') {
                 badgeSpan.className = 'badge bg-secondary rounded-pill';
                 badgeSpan.textContent = 'Unknown';
@@ -552,12 +552,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 badgeSpan.className = 'badge bg-primary rounded-pill';
                 badgeSpan.textContent = `${Math.round(detection.similarity)}% match`;
             }
-            
+
             // Add name and badge to main row
             mainContent.appendChild(nameSpan);
             mainContent.appendChild(badgeSpan);
             item.appendChild(mainContent);
-            
+
             // Add timestamp if available
             if (detection.timestamp) {
                 const timestampDiv = document.createElement('div');
@@ -565,11 +565,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 timestampDiv.innerHTML = `<i class="fas fa-clock me-1"></i>${detection.timestamp.time} <i class="fas fa-calendar ms-2 me-1"></i>${detection.timestamp.date}`;
                 item.appendChild(timestampDiv);
             }
-            
+
             detectionList.appendChild(item);
         });
     }
-    
+
     /**
      * Show a notification for a detected person
      * @param {Object} detection - The detection data
@@ -580,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("This browser does not support notifications");
             return;
         }
-        
+
         // Check if permission is already granted
         if (Notification.permission === "granted") {
             createNotification(detection);
@@ -594,7 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-    
+
     /**
      * Create and show a notification
      * @param {Object} detection - The detection data
@@ -604,13 +604,13 @@ document.addEventListener('DOMContentLoaded', function() {
             body: `Detected with ${Math.round(detection.similarity)}% similarity`,
             icon: '/static/images/icon.png' // The app icon
         };
-        
+
         const notification = new Notification(`Face Detected: ${detection.name}`, options);
-        
+
         // Close the notification after 5 seconds
         setTimeout(notification.close.bind(notification), 5000);
     }
-    
+
     /**
      * Show an alert message
      * @param {string} message - The message to show
@@ -619,7 +619,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function deleteAllPersons() {
         if (confirm('Tüm kişileri silmek istediğinizden emin misiniz?')) {
             fetch('/delete_all_persons', {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             })
             .then(response => response.json())
             .then(data => {
@@ -650,10 +653,10 @@ function showAlert(message, type) {
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         `;
-        
+
         // Add to DOM
         document.body.appendChild(alertDiv);
-        
+
         // Auto-dismiss after 3 seconds
         setTimeout(() => {
             alertDiv.classList.remove('show');
@@ -662,32 +665,32 @@ function showAlert(message, type) {
             }, 150);
         }, 3000);
     }
-    
+
     // Initialize the webpage
     function init() {
         // Initialize webcam
         initializeWebcam();
-        
+
         // Load known faces
         loadKnownFaces();
-        
+
         // Reset capture state when modal is closed
         const addPersonModal = document.getElementById('addPersonModal');
         addPersonModal.addEventListener('hidden.bs.modal', function() {
             isCaptureReady = false;
             savePersonBtn.disabled = true;
             personNameInput.value = '';
-            
+
             // Clear the capture preview
             while (capturePreview.firstChild) {
                 capturePreview.removeChild(capturePreview.firstChild);
             }
         });
-        
+
         // Update threshold value display when slider changes
         thresholdSlider.addEventListener('input', function() {
             document.getElementById('thresholdValue').textContent = `${this.value}%`;
-            
+
             // Update the threshold on the server
             fetch('/update_threshold', {
                 method: 'POST',
@@ -702,16 +705,16 @@ function showAlert(message, type) {
             });
         });
     }
-    
+
     // Start initialization
     init();
-    
+
     // Clean up when the page is unloaded
     window.addEventListener('beforeunload', function() {
         if (processingInterval) {
             clearInterval(processingInterval);
         }
-        
+
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
         }
