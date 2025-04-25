@@ -3,6 +3,7 @@ import numpy as np
 import os
 import logging
 import pickle
+import base64
 from typing import List, Tuple, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ class FaceRecognitionService:
         # Initialize known faces database
         self.known_face_features = []
         self.known_face_names = []
+        self.known_face_thumbnails = []  # Store small thumbnails of faces
         
         # Load face recognizer
         self.face_detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -46,6 +48,11 @@ class FaceRecognitionService:
                     data = pickle.load(f)
                     self.known_face_features = data.get('features', [])
                     self.known_face_names = data.get('names', [])
+                    self.known_face_thumbnails = data.get('thumbnails', [])
+                    
+                    # If no thumbnails but we have features, generate empty thumbnails
+                    if len(self.known_face_thumbnails) == 0 and len(self.known_face_features) > 0:
+                        self.known_face_thumbnails = [None] * len(self.known_face_features)
                     
                 # If we have face data, train the recognizer
                 if self.known_face_features and len(self.known_face_features) > 0:
@@ -64,7 +71,8 @@ class FaceRecognitionService:
         try:
             data = {
                 'features': self.known_face_features,
-                'names': self.known_face_names
+                'names': self.known_face_names,
+                'thumbnails': self.known_face_thumbnails
             }
             with open(self.face_data_file, 'wb') as f:
                 pickle.dump(data, f)
@@ -106,9 +114,17 @@ class FaceRecognitionService:
             # Resize for consistency
             face_roi = cv2.resize(face_roi, (100, 100))
             
+            # Store a thumbnail of the face
+            face_color = face_image[y:y+h, x:x+w]
+            thumbnail = cv2.resize(face_color, (64, 64))
+            # Convert to base64 for storage and transmission
+            _, buffer = cv2.imencode('.jpg', thumbnail)
+            thumbnail_b64 = base64.b64encode(buffer).decode('utf-8')
+            
             # Add to the known faces database
             self.known_face_features.append(face_roi)
             self.known_face_names.append(person_name)
+            self.known_face_thumbnails.append(thumbnail_b64)
             
             # Train the recognizer with all faces
             if len(self.known_face_features) > 0:

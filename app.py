@@ -239,9 +239,17 @@ def add_person_webcam():
 
 @app.route('/get_faces', methods=['GET'])
 def get_faces():
-    """Get the list of known faces"""
+    """Get the list of known faces with thumbnails"""
     try:
-        faces = [{"name": name} for name in face_service.known_face_names]
+        faces = []
+        for i, name in enumerate(face_service.known_face_names):
+            face_data = {"name": name}
+            # Add thumbnail if available
+            if (i < len(face_service.known_face_thumbnails) and 
+                face_service.known_face_thumbnails[i] is not None):
+                face_data["thumbnail"] = face_service.known_face_thumbnails[i]
+            faces.append(face_data)
+            
         return jsonify({
             "status": "success",
             "faces": faces
