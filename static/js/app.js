@@ -643,6 +643,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+            });
+        }
+    }
 
 function showAlert(message, type) {
         // Create alert element
