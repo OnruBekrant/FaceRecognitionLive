@@ -3,8 +3,10 @@ import logging
 import cv2
 import numpy as np
 import time
+import base64
 from flask import Flask, render_template, Response, jsonify, request
 from face_recognition_service import FaceRecognitionService
+import io
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -17,8 +19,9 @@ app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key")
 # Initialize face recognition service
 face_service = FaceRecognitionService()
 
-# Global variable to store the current frame for face capture
+# Global variables
 current_frame = None
+recognition_threshold = 60  # Default similarity threshold
 
 @app.route('/')
 def index():
@@ -27,10 +30,9 @@ def index():
 
 def gen_frames():
     """
-    Generator function to yield processed video frames
+    Generator function to yield processed video frames for server-side simulation
     
-    In Replit environment, we can't access a physical camera,
-    so we're using a single static image
+    This is a fallback for when WebRTC camera access isn't available
     """
     global current_frame
     
@@ -84,13 +86,61 @@ def gen_frames():
 
 @app.route('/video_feed')
 def video_feed():
-    """Video streaming route for the webcam feed with face recognition"""
+    """Video streaming route for the webcam feed (server-side fallback)"""
     return Response(gen_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/process_frame', methods=['POST'])
+def process_frame():
+    """Process a frame captured from WebRTC camera"""
+    global current_frame
+    
+    try:
+        # Get frame from request
+        if 'frame' not in request.files:
+            return jsonify({
+                "status": "error",
+                "message": "No frame found in request"
+            }), 400
+        
+        # Read the image
+        frame_file = request.files['frame']
+        frame_bytes = frame_file.read()
+        
+        # Convert to numpy array
+        frame_array = np.frombuffer(frame_bytes, np.uint8)
+        frame = cv2.imdecode(frame_array, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to decode image"
+            }), 400
+        
+        # Store the current frame for later use
+        current_frame = frame.copy()
+        
+        # Process the frame to detect and recognize faces
+        processed_frame, face_data = face_service.process_frame(frame)
+        
+        # Return the face detection data to the client
+        return jsonify({
+            "status": "success",
+            "detections": face_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing frame: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "status": "error",
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+
 @app.route('/add_person', methods=['POST'])
 def add_person():
-    """Add a new person to the recognition database"""
+    """Add a new person to the recognition database using server-side current frame"""
     global current_frame
     
     try:
@@ -125,6 +175,54 @@ def add_person():
             "message": f"An error occurred: {str(e)}"
         }), 500
 
+@app.route('/add_person_webcam', methods=['POST'])
+def add_person_webcam():
+    """Add a new person to the recognition database using client-side captured image"""
+    try:
+        # Get data from request
+        data = request.json
+        person_name = data.get('name')
+        image_data = data.get('image_data')  # Base64 encoded image
+        
+        if not person_name:
+            return jsonify({"status": "error", "message": "Name is required"}), 400
+        
+        if not image_data:
+            return jsonify({"status": "error", "message": "Image data is required"}), 400
+        
+        # Decode the image
+        try:
+            img_bytes = base64.b64decode(image_data)
+            img_array = np.frombuffer(img_bytes, dtype=np.uint8)
+            frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            
+            if frame is None:
+                return jsonify({"status": "error", "message": "Failed to decode image"}), 400
+        except Exception as e:
+            logger.error(f"Error decoding image: {str(e)}")
+            return jsonify({"status": "error", "message": "Invalid image data"}), 400
+        
+        # Add the face to the recognition service
+        success = face_service.add_face(frame, person_name)
+        
+        if success:
+            return jsonify({
+                "status": "success", 
+                "message": f"Person '{person_name}' added successfully"
+            })
+        else:
+            return jsonify({
+                "status": "error", 
+                "message": "Failed to detect a face in the image"
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error adding person from webcam: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+
 @app.route('/get_faces', methods=['GET'])
 def get_faces():
     """Get the list of known faces"""
@@ -136,6 +234,38 @@ def get_faces():
         })
     except Exception as e:
         logger.error(f"Error getting faces: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+
+@app.route('/update_threshold', methods=['POST'])
+def update_threshold():
+    """Update the recognition threshold"""
+    global recognition_threshold
+    
+    try:
+        data = request.json
+        threshold = data.get('threshold')
+        
+        if threshold is None:
+            return jsonify({"status": "error", "message": "Threshold is required"}), 400
+        
+        # Validate and update the threshold
+        threshold = int(threshold)
+        if threshold < 0 or threshold > 100:
+            return jsonify({"status": "error", "message": "Threshold must be between 0 and 100"}), 400
+        
+        recognition_threshold = threshold
+        logger.info(f"Recognition threshold updated to {threshold}%")
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Threshold updated to {threshold}%"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating threshold: {str(e)}")
         return jsonify({
             "status": "error",
             "message": f"An error occurred: {str(e)}"
