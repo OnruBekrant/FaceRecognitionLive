@@ -35,11 +35,11 @@ class FaceRecognitionService:
         self._load_face_data()
         
         # Frame processing parameters
-        self.process_every_n_frames = 2
+        self.process_every_n_frames = 1  # Process every frame for smoother detection
         self.frame_count = 0
-        self.min_face_size = (80, 80)  # Minimum face size to detect
-        self.scale_factor = 1.1  # How much the image size is reduced at each image scale
-        self.min_neighbors = 5  # How many neighbors each candidate rectangle should have
+        self.min_face_size = (60, 60)  # Smaller minimum face size to detect faces further from camera
+        self.scale_factor = 1.05  # Smaller scale factor for more accurate but slower detection
+        self.min_neighbors = 4  # Lower minimum neighbors for more sensitive detection
         
         logger.info("Face recognition service initialized")
         
@@ -294,7 +294,7 @@ class FaceRecognitionService:
                         similarity = max(0, min(100, 100 - confidence / 2))
                         
                         # Use a threshold to determine if it's a match
-                        if similarity >= 60:  # 60% similarity threshold
+                        if similarity >= 50:  # Düşürülmüş 50% similarity threshold
                             name = self.known_face_names[label]
                     except Exception as e:
                         logger.error(f"Error in face recognition: {str(e)}")

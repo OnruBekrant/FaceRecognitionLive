@@ -349,7 +349,25 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.status === 'success') {
                     showAlert('Kişi başarıyla silindi', 'success');
-                    loadKnownFaces(); // Reload the faces list
+                    
+                    // 1. Reload the known faces list
+                    loadKnownFaces(); 
+                    
+                    // 2. Update comparison dropdowns if modal is open
+                    const compareModal = document.getElementById('compareModal');
+                    if (compareModal && compareModal.classList.contains('show')) {
+                        const event = new Event('show.bs.modal');
+                        compareModal.dispatchEvent(event);
+                    }
+                    
+                    // 3. Filter out deleted person from recent detections
+                    recentDetections = recentDetections.filter(detection => {
+                        // Keep only detections that aren't related to the deleted person
+                        return detection.name !== data.person_name;
+                    });
+                    
+                    // 4. Update the UI for recent detections
+                    updateDetectionsList();
                 } else {
                     showAlert(`Hata: ${data.message}`, 'danger');
                 }
@@ -449,6 +467,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 recentDetections.splice(existingIndex, 1);
             }
             
+            // Add current date and time to the detection
+            const now = new Date();
+            const formattedTime = now.toLocaleTimeString('tr-TR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            const formattedDate = now.toLocaleDateString('tr-TR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            
+            // Add timestamp to detection object
+            detection.timestamp = {
+                time: formattedTime,
+                date: formattedDate,
+                raw: now
+            };
+            
             // Add to recent detections array
             recentDetections.unshift(detection);
             
@@ -485,16 +523,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add each detection to the list
         recentDetections.forEach((detection, index) => {
             const item = document.createElement('li');
-            item.className = 'list-group-item d-flex justify-content-between align-items-center';
+            item.className = 'list-group-item';
             
             if (index === 0) {
                 item.classList.add('highlight-detection');
             }
             
-            const nameSpan = document.createElement('span');
+            // Create main content div with name and time
+            const mainContent = document.createElement('div');
+            mainContent.className = 'd-flex justify-content-between align-items-center';
+            
+            // Create left side with name and icon
+            const nameSpan = document.createElement('div');
             nameSpan.innerHTML = `<i class="fas fa-user me-2"></i>${detection.name}`;
             
-            const badgeSpan = document.createElement('span');
+            // Create right side with badge
+            const badgeSpan = document.createElement('div');
             
             if (detection.name === 'Unknown') {
                 badgeSpan.className = 'badge bg-secondary rounded-pill';
@@ -504,8 +548,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 badgeSpan.textContent = `${Math.round(detection.similarity)}% match`;
             }
             
-            item.appendChild(nameSpan);
-            item.appendChild(badgeSpan);
+            // Add name and badge to main row
+            mainContent.appendChild(nameSpan);
+            mainContent.appendChild(badgeSpan);
+            item.appendChild(mainContent);
+            
+            // Add timestamp if available
+            if (detection.timestamp) {
+                const timestampDiv = document.createElement('div');
+                timestampDiv.className = 'mt-1 text-muted small';
+                timestampDiv.innerHTML = `<i class="fas fa-clock me-1"></i>${detection.timestamp.time} <i class="fas fa-calendar ms-2 me-1"></i>${detection.timestamp.date}`;
+                item.appendChild(timestampDiv);
+            }
+            
             detectionList.appendChild(item);
         });
     }
