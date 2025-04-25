@@ -2,7 +2,7 @@ import pickle
 import logging
 import base64
 from models import Person, Face
-from main import db
+from application import db
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,33 @@ class DBFaceStorageService:
         """
         try:
             persons = Person.query.all()
-            return [{"name": person.name, "thumbnail": person.thumbnail} for person in persons]
+            return [{"id": person.id, "name": person.name, "thumbnail": person.thumbnail} for person in persons]
         except Exception as e:
             logger.error(f"Error getting person thumbnails: {str(e)}")
             return []
+            
+    def delete_person(self, person_id):
+        """
+        Delete a person and all their face data
+        
+        Args:
+            person_id: ID of the person to delete
+            
+        Returns:
+            bool: True if deleted successfully, False otherwise
+        """
+        try:
+            person = Person.query.get(person_id)
+            if not person:
+                logger.warning(f"Person with ID {person_id} not found")
+                return False
+                
+            # The faces will be automatically deleted due to cascade="all, delete-orphan"
+            db.session.delete(person)
+            db.session.commit()
+            logger.info(f"Deleted person {person.name} with ID {person_id}")
+            return True
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting person: {str(e)}")
+            return False

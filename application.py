@@ -1,7 +1,6 @@
 """
-Face Recognition Web Application - Routes
+Face Recognition Web Application - Main Application
 """
-from flask import render_template, Response, jsonify, request
 import os
 import logging
 import cv2
@@ -10,15 +9,67 @@ import time
 import base64
 import pickle
 import io
+from flask import Flask, render_template, Response, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Database setup
+class Base(DeclarativeBase):
+    pass
+
+# Create database instance
+db = SQLAlchemy(model_class=Base)
+
+# Create the Flask app
+app = Flask(__name__)
+
+# Setup a secret key, required by sessions
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "a secret key"
+
+# Get database URL from environment
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    logger.error("DATABASE_URL environment variable not set!")
+else:
+    logger.info(f"Using database URL: {database_url.split('@')[0]}@...")
+
+# Configure the database
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Initialize the app with the extension, flask-sqlalchemy >= 3.0.x
+db.init_app(app)
+
+# Initialize models and services
+with app.app_context():
+    # Import models and create tables
+    import models
+    db.create_all()
+    
+    # Initialize services
+    from dbservice import DBFaceStorageService
+    from face_recognition_service import FaceRecognitionService
+    
+    # Initialize face recognition service
+    face_service = FaceRecognitionService()
+    
+    # Initialize database service and attach to face service
+    db_service = DBFaceStorageService()
+    face_service.db_service = db_service
+
 # Global variables
 current_frame = None
 recognition_threshold = 60  # Default similarity threshold
 
+# Routes
 @app.route('/')
 def index():
     """Render the main page"""
@@ -330,5 +381,6 @@ def update_threshold():
             "message": f"An error occurred: {str(e)}"
         }), 500
 
+# For development use
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

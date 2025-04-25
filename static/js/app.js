@@ -331,6 +331,33 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
+    /**
+     * Delete a person from the database
+     * @param {number} personId - The ID of the person to delete
+     */
+    function deletePerson(personId) {
+        if (!confirm('Bu kişiyi silmek istediğinizden emin misiniz?')) {
+            return;
+        }
+        
+        fetch(`/delete_person/${personId}`, {
+            method: 'DELETE'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Kişi başarıyla silindi', 'success');
+                    loadKnownFaces(); // Reload the faces list
+                } else {
+                    showAlert(`Hata: ${data.message}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting person:', error);
+                showAlert('Kişi silinirken bir hata oluştu', 'danger');
+            });
+    }
+
     // Update the UI to show known faces with thumbnails
     function updateKnownFacesUI(faces) {
         console.log('Known faces loaded:', faces);
@@ -350,36 +377,50 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Group people with the same name together and show only unique names
-        const uniqueFaces = {};
+        // Add each person to the list with delete button
         faces.forEach(face => {
-            if (!uniqueFaces[face.name] || 
-                (face.thumbnail && !uniqueFaces[face.name].thumbnail)) {
-                uniqueFaces[face.name] = face;
-            }
-        });
-        
-        // Add each unique person to the list
-        Object.values(uniqueFaces).forEach(face => {
             const item = document.createElement('li');
-            item.className = 'list-group-item known-person-item';
+            item.className = 'list-group-item known-person-item d-flex justify-content-between align-items-center';
+            
+            // Create left part with thumbnail and name
+            const leftPart = document.createElement('div');
+            leftPart.className = 'd-flex align-items-center';
             
             // Create thumbnail image or placeholder
-            let thumbnailHTML = '';
             if (face.thumbnail) {
-                thumbnailHTML = `<img src="data:image/jpeg;base64,${face.thumbnail}" 
-                                      alt="${face.name}" class="known-person-thumbnail">`;
+                const img = document.createElement('img');
+                img.src = `data:image/jpeg;base64,${face.thumbnail}`;
+                img.alt = face.name;
+                img.className = 'known-person-thumbnail me-2';
+                leftPart.appendChild(img);
             } else {
-                thumbnailHTML = `<div class="known-person-thumbnail d-flex justify-content-center align-items-center">
-                                    <i class="fas fa-user text-white"></i>
-                                 </div>`;
+                const placeholder = document.createElement('div');
+                placeholder.className = 'known-person-thumbnail d-flex justify-content-center align-items-center me-2';
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-user text-white';
+                placeholder.appendChild(icon);
+                leftPart.appendChild(placeholder);
             }
             
             // Create name span
-            const nameHTML = `<span class="known-person-name">${face.name}</span>`;
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'known-person-name';
+            nameSpan.textContent = face.name;
+            leftPart.appendChild(nameSpan);
             
-            // Set the HTML content
-            item.innerHTML = thumbnailHTML + nameHTML;
+            // Create delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-sm btn-danger';
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                deletePerson(face.id);
+            });
+            
+            // Add components to the list item
+            item.appendChild(leftPart);
+            item.appendChild(deleteBtn);
             
             // Add to list
             knownPeopleList.appendChild(item);
@@ -517,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create alert element
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
-        alertDiv.style.zIndex = '1050';
+        alertDiv.style.zIndex = '1500'; // Increased z-index to appear above modals
         alertDiv.innerHTML = `
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
