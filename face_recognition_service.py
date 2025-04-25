@@ -19,6 +19,9 @@ class FaceRecognitionService:
         # File to store face data
         self.face_data_file = os.path.join(self.face_data_dir, 'face_data.pkl')
         
+        # We'll initialize the database service later to avoid circular imports
+        self.db_service = None
+        
         # Initialize known faces database
         self.known_face_features = []
         self.known_face_names = []
@@ -41,8 +44,38 @@ class FaceRecognitionService:
         logger.info("Face recognition service initialized")
         
     def _load_face_data(self):
-        """Load existing face data if available"""
+        """Load existing face data from the database"""
         try:
+            # Load from database if it's initialized
+            if self.db_service is not None:
+                try:
+                    # Get all faces from database
+                    db_faces = self.db_service.get_all_faces()
+                    
+                    # Reset current data
+                    self.known_face_features = []
+                    self.known_face_names = []
+                    self.known_face_thumbnails = []
+                    
+                    # Populate from database
+                    for name, features, thumbnail in db_faces:
+                        self.known_face_features.append(features)
+                        self.known_face_names.append(name)
+                        self.known_face_thumbnails.append(thumbnail)
+                    
+                    # If we have face data from the database, train the recognizer
+                    if self.known_face_features and len(self.known_face_features) > 0:
+                        labels = np.array([i for i in range(len(self.known_face_names))])
+                        self.face_recognizer.train(self.known_face_features, labels)
+                        logger.info(f"Loaded {len(self.known_face_names)} faces from database")
+                        return
+                    
+                except Exception as db_error:
+                    logger.error(f"Error loading from database, falling back to file: {str(db_error)}")
+            else:
+                logger.info("Database service not initialized, using file storage")
+            
+            # Fall back to file-based storage if database failed or isn't initialized
             if os.path.exists(self.face_data_file):
                 with open(self.face_data_file, 'rb') as f:
                     data = pickle.load(f)
@@ -58,9 +91,9 @@ class FaceRecognitionService:
                 if self.known_face_features and len(self.known_face_features) > 0:
                     labels = np.array([i for i in range(len(self.known_face_names))])
                     self.face_recognizer.train(self.known_face_features, labels)
-                    logger.info(f"Loaded {len(self.known_face_names)} faces for recognition")
+                    logger.info(f"Loaded {len(self.known_face_names)} faces from file")
                 else:
-                    logger.info("No existing face data found")
+                    logger.info("No existing face data found in file")
             else:
                 logger.info("No existing face data file found")
         except Exception as e:
@@ -121,7 +154,16 @@ class FaceRecognitionService:
             _, buffer = cv2.imencode('.jpg', thumbnail)
             thumbnail_b64 = base64.b64encode(buffer).decode('utf-8')
             
-            # Add to the known faces database
+            # Save to database first if it's initialized
+            if self.db_service is not None:
+                try:
+                    self.db_service.save_face(person_name, face_roi, thumbnail_b64)
+                    logger.info(f"Saved face for {person_name} to database")
+                except Exception as db_error:
+                    logger.error(f"Error saving to database: {str(db_error)}")
+                    # Continue even if database save fails
+            
+            # Add to the in-memory database
             self.known_face_features.append(face_roi)
             self.known_face_names.append(person_name)
             self.known_face_thumbnails.append(thumbnail_b64)
@@ -131,7 +173,7 @@ class FaceRecognitionService:
                 labels = np.array([i for i in range(len(self.known_face_names))])
                 self.face_recognizer.train(self.known_face_features, labels)
             
-            # Save the updated face data
+            # Save to the file as backup
             self._save_face_data()
             
             logger.info(f"Added face for {person_name}")

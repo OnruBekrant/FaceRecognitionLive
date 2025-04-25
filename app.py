@@ -4,20 +4,27 @@ import cv2
 import numpy as np
 import time
 import base64
-from flask import Flask, render_template, Response, jsonify, request
-from face_recognition_service import FaceRecognitionService
+import pickle
+from flask import render_template, Response, jsonify, request
 import io
+from main import db, app
+
+# Import database service
+from dbservice import DBFaceStorageService
+
+# Import face recognition service after app is defined
+from face_recognition_service import FaceRecognitionService
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key")
-
 # Initialize face recognition service
 face_service = FaceRecognitionService()
+
+# Initialize database service and attach to face service
+db_service = DBFaceStorageService()
+face_service.db_service = db_service
 
 # Global variables
 current_frame = None
@@ -241,6 +248,19 @@ def add_person_webcam():
 def get_faces():
     """Get the list of known faces with thumbnails"""
     try:
+        # Try to get faces from the database service first
+        try:
+            person_data = face_service.db_service.get_person_thumbnails()
+            if person_data:
+                return jsonify({
+                    "status": "success",
+                    "faces": person_data
+                })
+        except Exception as db_error:
+            logger.error(f"Error getting faces from database: {str(db_error)}")
+            # Fall back to in-memory data
+        
+        # If database retrieval failed or returned no data, use in-memory data
         faces = []
         for i, name in enumerate(face_service.known_face_names):
             face_data = {"name": name}
