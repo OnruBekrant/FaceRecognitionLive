@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} message - The message to show
      * @param {string} type - The alert type (success, danger, warning, info)
      */
-    function deleteAllPersons() {
+    window.deleteAllPersons = function() {
         if (confirm('Tüm kişileri silmek istediğinizden emin misiniz?')) {
             fetch('/delete_all_persons', {
                 method: 'DELETE',
