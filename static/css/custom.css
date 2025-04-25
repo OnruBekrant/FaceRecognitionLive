@@ -1,5 +1,26 @@
 /* Custom styling for the face recognition app */
 
+/* Known people list styling */
+.known-person-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+}
+
+.known-person-thumbnail {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 50%;
+    margin-right: 10px;
+    border: 2px solid var(--bs-primary);
+    background-color: var(--bs-dark);
+}
+
+.known-person-name {
+    font-weight: 500;
+}
+
 /* Video container styling */
 .video-container {
     position: relative;

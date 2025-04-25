@@ -331,9 +331,60 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Update the UI to show known faces
+    // Update the UI to show known faces with thumbnails
     function updateKnownFacesUI(faces) {
-        // You could add a panel or dropdown showing known people
+        console.log('Known faces loaded:', faces);
+        
+        const knownPeopleList = document.getElementById('knownPeopleList');
+        if (!knownPeopleList) return;
+        
+        // Clear the current list
+        knownPeopleList.innerHTML = '';
+        
+        if (faces.length === 0) {
+            // Show empty state
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'list-group-item text-center text-muted';
+            emptyItem.textContent = 'No known people';
+            knownPeopleList.appendChild(emptyItem);
+            return;
+        }
+        
+        // Group people with the same name together and show only unique names
+        const uniqueFaces = {};
+        faces.forEach(face => {
+            if (!uniqueFaces[face.name] || 
+                (face.thumbnail && !uniqueFaces[face.name].thumbnail)) {
+                uniqueFaces[face.name] = face;
+            }
+        });
+        
+        // Add each unique person to the list
+        Object.values(uniqueFaces).forEach(face => {
+            const item = document.createElement('li');
+            item.className = 'list-group-item known-person-item';
+            
+            // Create thumbnail image or placeholder
+            let thumbnailHTML = '';
+            if (face.thumbnail) {
+                thumbnailHTML = `<img src="data:image/jpeg;base64,${face.thumbnail}" 
+                                      alt="${face.name}" class="known-person-thumbnail">`;
+            } else {
+                thumbnailHTML = `<div class="known-person-thumbnail d-flex justify-content-center align-items-center">
+                                    <i class="fas fa-user text-white"></i>
+                                 </div>`;
+            }
+            
+            // Create name span
+            const nameHTML = `<span class="known-person-name">${face.name}</span>`;
+            
+            // Set the HTML content
+            item.innerHTML = thumbnailHTML + nameHTML;
+            
+            // Add to list
+            knownPeopleList.appendChild(item);
+        });
+        
         console.log('Known faces updated in UI');
     }
     
